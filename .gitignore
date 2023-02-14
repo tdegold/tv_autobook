@@ -4,6 +4,9 @@
 *.csv
 *.txt
 
+parse.py
+compare.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
