@@ -52,6 +52,12 @@ def seed_db(script: str, connection_string=":memory:") -> sqlite3.Connection:
     return con
 
 def lookup_member(con, id: int):
+    """Get member query from database with given id
+
+    :param con: database connection
+    :param id: id for the where clause
+    :return: returns result set of query
+    """
     return con.cursor().execute(f"SELECT * FROM table_mitglieder WHERE id={id};").fetchall()
 
 ############### DATA STUFF #################################################
