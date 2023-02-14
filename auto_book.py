@@ -2,9 +2,16 @@ import sqlite3
 from pprint import pprint
 
 def clean_dump(file: str, write_to_file="") -> str:
+    """Returns the content of a SQL-dump file but removes parts sqlite cannot correctly interpret
+    
+    :param file: path to the SQL-dump file
+    :param write_to_file: if path to a file is provided, output text will also be written to that file
+    :return: the sqlite-friendly content of the SQL-dump file
+    """
     text = None
     with open(file, mode="r", encoding="utf-8") as sql_file:
-        # need to replace some strings which sqlite cannot handle and which are not needed for our use case
+        # need to replace some strings which sqlite cannot handle 
+        # and which are not needed for our use case
         text = sql_file.read().replace(
             "SET SQL_MODE = \"NO_AUTO_VALUE_ON_ZERO\";", ""
         ).replace(
@@ -30,6 +37,12 @@ def clean_dump(file: str, write_to_file="") -> str:
     return text
 
 def seed_db(script: str, connection_string=":memory:") -> sqlite3.Connection:
+    """Will connect to a sqlite database and seed it with the provided script
+
+    :param script: contains the script to be executet on the database
+    :connection_string: path to the sqlite .db-file. Defaults to in-memory database
+    :return: the sqlite3.Connection object for the database
+    """
     con = sqlite3.connect(connection_string)
     cur = con.cursor()
     cur.executescript(script)
