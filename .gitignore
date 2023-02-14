@@ -3,7 +3,7 @@
 *.db
 *.csv
 *.txt
-
+*.drawio
 parse.py
 compare.py
 

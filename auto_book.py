@@ -51,12 +51,10 @@ def seed_db(script: str, connection_string=":memory:") -> sqlite3.Connection:
     cur.executescript(script)
     return con
 
-############### DATA STUFF #################################################
+def lookup_member(con, id: int):
+    return con.cursor().execute(f"SELECT * FROM table_mitglieder WHERE id={id};").fetchall()
 
-def get_distinct_titles(con: sqlite3.Connection) -> list:
-    res = con.cursor().execute("SELECT DISTINCT(titel) FROM table_mitglieder")
-    # filter empty titel-fields
-    return [item for t in res for item in t if item not in ("", " ", None)]
+############### DATA STUFF #################################################
 
 def parse_fullinfo(text: str) -> pd.Series:
     """Parse the single column text into ["sender", "text", "reference", "iban", "bic"].
@@ -79,7 +77,12 @@ def parse_fullinfo(text: str) -> pd.Series:
 
     return pd.Series([text, info, ref, iban, bic], ["sender", "text", "reference", "iban", "bic"])
 
-def read_and_parse_csv(file: str) -> pd.core.frame.DataFrame:
+def read_and_parse_csv(file: str) -> pd.DataFrame:
+    """Reads data-csv into pandas dataframe and restructures data as needed
+    
+    :param file: path to .csv file
+    :return: the pandas dataframe containing the data
+    """
     df_eh = pd.read_csv(
         file, delimiter=";", decimal=",", header=None,
         usecols=[0, 1, 3, 4],
@@ -103,7 +106,7 @@ if __name__ == "__main__":
     file = input("Welche sql-dump Datei soll bereinigt werden: ")
     script = clean_dump(file)
     con = seed_db(script)
-    titel = get_distinct_titles(con)
-    df_eh = read_and_parse_csv("daten.csv")
-    
+    cur = con.cursor()
+    df_eh = read_and_parse_csv("daten.csv")    
+    con.close()
 
