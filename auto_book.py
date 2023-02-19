@@ -1,118 +1,70 @@
-import sqlite3
+from Database import *
+from Data import *
+import re
+
 from pprint import pprint
-import pandas as pd
 
-##################### DB STUFF ################################################
+def uml(txt: str) -> str:
+    return txt.lower().replace("ö", "oe").replace("ä", "ae").replace("ü","ue")
 
-def clean_dump(file: str, write_to_file="") -> str:
-    """Returns the content of a SQL-dump file but removes parts sqlite cannot correctly interpret
-    
-    :param file: path to the SQL-dump file
-    :param write_to_file: if path to a file is provided, output text will also be written to that file
-    :return: the sqlite-friendly content of the SQL-dump file
-    """
-    text = None
-    with open(file, mode="r", encoding="utf-8") as sql_file:
-        # need to replace some strings which sqlite cannot handle 
-        # and which are not needed for our use case
-        text = sql_file.read().replace(
-            "SET SQL_MODE = \"NO_AUTO_VALUE_ON_ZERO\";", ""
-        ).replace(
-            "START TRANSACTION;", ""
-        ).replace(
-            "SET time_zone = \"+00:00\";", ""
-        ).replace("`", "").replace(
-            " ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", ""
-        ).replace(
-            " COLLATE utf8_unicode_ci", ""
-        ).replace(
-            " CHARACTER SET utf8", ""
-        ).replace(
-            "set('Herr','Frau')", "varchar(32)" # sets are not supportet in sqlite
-        ).replace(
-            "\\\'", "" # nasty strings within the "notiz"-field that mess up escaped characters
-        ).split("-- Indexes for dumped tables")[0] # remove primary key clauses
-    
-    if write_to_file != "":    
-        with open(write_to_file, mode="w", encoding="utf-8") as output:
-            output.write(text)
+def match_with_text(db: Database, sender, text: str) -> int:
+    nums = set([int(it) for it in re.findall("\\b\\d{1,5}\\b", text) if int(it) > 0])
+    for n in nums:
+        person = db.lookup_member(n)
+        if person == {}:
+            return -1
+        if uml(sender).__contains__(uml(person["surname"])):
+            return n
+    return -1  
 
-    return text
+def match(db: Database, entry):
+    if entry.reference is None:
+        if entry.text is None:
+            return -1
+        return match_with_text(db, entry.sender, entry.text)
 
-def seed_db(script: str, connection_string=":memory:") -> sqlite3.Connection:
-    """Will connect to a sqlite database and seed it with the provided script
-
-    :param script: contains the script to be executet on the database
-    :connection_string: path to the sqlite .db-file. Defaults to in-memory database
-    :return: the sqlite3.Connection object for the database
-    """
-    con = sqlite3.connect(connection_string)
-    cur = con.cursor()
-    cur.executescript(script)
-    return con
-
-def lookup_member(con, id: int):
-    """Get member query from database with given id
-
-    :param con: database connection
-    :param id: id for the where clause
-    :return: returns result set of query
-    """
-    return con.cursor().execute(f"SELECT * FROM table_mitglieder WHERE id={id};").fetchall()
-
-############### DATA STUFF #################################################
-
-def parse_fullinfo(text: str) -> pd.Series:
-    """Parse the single column text into ["sender", "text", "reference", "iban", "bic"].
-    
-    :param text: contains all the neccessary information as one string
-    :return: returns the information as separate columns
-    """
-    if text.find("Auftraggeber: ") == 0:
-        text = text[14:]    # drop the leading `Auftraggeber: `
-
-    ref = info = bic = iban = None
-    if " BIC Auftraggeber: " in text:
-        text, bic = text.split(" BIC Auftraggeber: ")
-    if " IBAN Auftraggeber: " in text:
-        text, iban = text.split(" IBAN Auftraggeber: ")
-    if " Zahlungsreferenz: " in text:
-        text, ref = text.split(" Zahlungsreferenz: ")
-    if " Verwendungszweck: " in text:
-        text, info = text.split(" Verwendungszweck: ")
-
-    return pd.Series([text, info, ref, iban, bic], ["sender", "text", "reference", "iban", "bic"])
-
-def read_and_parse_csv(file: str) -> pd.DataFrame:
-    """Reads data-csv into pandas dataframe and restructures data as needed
-    
-    :param file: path to .csv file
-    :return: the pandas dataframe containing the data
-    """
-    df_eh = pd.read_csv(
-        file, delimiter=";", decimal=",", header=None,
-        usecols=[0, 1, 3, 4],
-        names=["date", "fullinfo", "amount", "currency"]
-    )
-
-    # drop `outgoing` rows
-    df_eh = df_eh.loc[df_eh.amount > 0]
-
-    # parse the information into separate columns
-    parsed_info = df_eh.fullinfo.apply(lambda x: parse_fullinfo(x))
-    df_eh = pd.concat([df_eh, parsed_info], axis=1)
-    df_eh = df_eh.drop(columns=["fullinfo"])
-
-    # set column order
-    df_eh = df_eh[["date", "sender", "amount", "currency", "reference", "text", "iban", "bic"]]
-
-    return df_eh
+    try:
+        mid = int(entry.reference)
+        return mid
+    except (ValueError, TypeError):
+        return match_with_text(db, entry.sender, entry.reference)
 
 if __name__ == "__main__":
-    file = input("Welche sql-dump Datei soll bereinigt werden: ")
-    script = clean_dump(file)
-    con = seed_db(script)
-    cur = con.cursor()
-    df_eh = read_and_parse_csv("daten.csv")    
-    con.close()
+    db = Database()
 
+    file = input("Welche sql-dump Datei soll bereinigt werden: ")
+    amount = int(input("Wie hoch war der Jahresbeitrag?: "))
+
+    script = Database.clean_dump(file)
+    db.seed(script)
+
+    df_eh = Data.read_and_parse_csv("daten.csv")
+
+    with open("output.sql", "a", encoding="utf-8") as sql:
+        with open("log.txt", "a", encoding="utf8") as log:
+            try:
+                for entry in df_eh.iloc:
+                    pprint(entry, stream=log)
+                    guess = match(db, entry)
+                    if guess == -1:
+                        pprint(entry)
+                        uin = input("Zu diesem Datensatz wurde keine ID gefunden.\nWelche soll verwendet werden?: ")
+                        if uin=="":
+                            print("Datensatz wurde vom Benutzer übersprungen. Keine Buchung!", file=log)
+                        else:
+                            guess = int(uin)
+                            print("ID wurde vom Benutzer ermittelt: " + str(guess), file=log)
+                    else:
+                        print("ID wurde vom Programm ermittelt: " + str(guess), file=log)
+                    print("", file=log)
+
+                    day = entry.date[0:2]
+                    mon = entry.date[3:5]
+                    yea = entry.date[6:]
+
+                    sql.write(f"INSERT INTO table_rechnungen(mid, datum, beschreibung, betrag, buchung) VALUES({guess}, \'{yea}-{mon}-{day}\', \'Jahresbeitrag\', {amount}, {amount});\n")
+                    if float(entry.amount)-amount > 0:
+                            sql.write(f"INSERT INTO table_rechnungen(mid, datum, beschreibung, betrag, buchung) VALUES({guess}, \'{yea}-{mon}-{day}\', \'Spende\', {float(entry.amount)-amount}, {float(entry.amount)-amount});\n")
+    
+            except KeyboardInterrupt:
+                print("Bye")
