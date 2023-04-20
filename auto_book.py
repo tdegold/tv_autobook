@@ -27,12 +27,12 @@ for p in df_eh.iloc:
             if donation > 0:
                 output.write(insert_don(id, p.date, donation))
 
-        with open("log.txt", "a", encoding="utf-(") as log:
+        with open("log.txt", "a", encoding="utf-8") as log:
             log.writelines(str(p))
             log.write(f"\nDatensatz wurde automatisch gebucht mit MID {id}. Betrag={amount}. Spende={donation}.\n\n")
 
     elif status == 2:
-        with open("log.txt", "a", encoding="utf-(") as log:
+        with open("log.txt", "a", encoding="utf-8") as log:
             log.writelines(str(p))
             log.write(f"\nDatensatz wurde übersprungen, da bereits eine Buchung in diesem Jahr vorhanden ist.\n\n")
 
@@ -43,7 +43,7 @@ for p in df_eh.iloc:
         while condition:
             u_in = input("Es konnte keine ID ermittelt werden. Bitte angeben oder \"skip\": ")
             if u_in.__eq__("skip"):
-                with open("log.txt", "a", encoding="utf-(") as log:
+                with open("log.txt", "a", encoding="utf-8") as log:
                         log.writelines(str(p))
                         log.write(f"\nDatensatz wurde vom User übersprungen.\n\n")
                 print("Datensatz wurde übersprungen. Keine Buchung.\n")
@@ -59,7 +59,7 @@ for p in df_eh.iloc:
 
                 ##################################
                 if code == 1:
-                    with open("output.sql", "a", encoding="utf-(") as output:
+                    with open("output.sql", "a", encoding="utf-8") as output:
 
                         amount, donation = split_fee(int(p.amount), fee)
             
@@ -67,7 +67,7 @@ for p in df_eh.iloc:
                         if donation > 0:
                             output.write(insert_don(id, p.date, donation))
                 
-                    with open("log.txt", "a", encoding="utf-(") as log:
+                    with open("log.txt", "a", encoding="utf-8") as log:
                         log.writelines(str(p))
                         log.write(f"\nDatensatz wurde vom User gebucht mit MID {id}. Betrag={amount}. Spende={donation}.\n\n")
                 
@@ -75,7 +75,7 @@ for p in df_eh.iloc:
                     condition = False
                 ######################################
                 elif code == 2:
-                    with open("log.txt", "a", encoding="utf-(") as log:
+                    with open("log.txt", "a", encoding="utf-8") as log:
                         log.writelines(str(p))
                         log.write(f"\nDatensatz wurde übersprungen, da bereits eine Buchung in diesem Jahr vorhanden ist.\n\n")
 
@@ -85,7 +85,7 @@ for p in df_eh.iloc:
                 elif code == -2:
                     print(f"Der Name stimmt überein, die Person ist aber in mind. einer ungewollten Gruppe {p.groups.intersection(pred.exclude_groups)}. Datensatz wird übersprungen.\n")
 
-                    with open("log.txt", "a", encoding="utf-(") as log:
+                    with open("log.txt", "a", encoding="utf-8") as log:
                         log.writelines(str(p))
                         log.write(f"\nDatensatz wurde übersprungen, da die Person in mind. einer ungewollten Gruppe ist. ({p.groups.intersection(pred.exclude_groups)})")
                     condition = False
