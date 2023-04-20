@@ -3,13 +3,18 @@ from Model.Data import Data
 from Model.Predictor import Predictor
 from Model.util import split_fee
 
+import sys
+
 db = Database()
 
 pred = Predictor(db)
 
-file = input("Welche sql-dump Datei soll bereinigt werden: ")
-
-fee = int(input("Wie hoch war der Jahresbeitrag?: "))
+try: 
+    file = sys.argv[1]
+    fee = int(sys.argv[2])
+except Exception:
+    file = input("Welche sql-dump Datei soll bereinigt werden: ")
+    fee = int(input("Wie hoch war der Jahresbeitrag?: "))
 
 script = Database.clean_dump(file)
 db.seed(script)
